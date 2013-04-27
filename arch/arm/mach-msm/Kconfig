@@ -1565,6 +1565,12 @@ config MSM_RPCSERVER_WATCHDOG
 	help
 	  The dog_keepalive server handles watchdog events.
 
+config USERSPACE_VOLTAGE_CONTROL
+	bool "Enable Userspace CPU Voltage Control"
+	default y
+	help
+		userspace voltage control
+
 config MSM_RPC_WATCHDOG
 	depends on MSM_ONCRPCROUTER
 	default n
