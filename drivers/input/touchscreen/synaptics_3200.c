@@ -2436,7 +2436,6 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 									}
 #endif
 								}
-#endif
 							}
 						}
 
@@ -2449,7 +2448,6 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								if (ts->reduce_report_level[TAP_TIMEOUT] && (ts->tap_suppression))
 									ts->tap_timeout[i] = jiffies + msecs_to_jiffies(ts->reduce_report_level[TAP_TIMEOUT]);
 							}
-							
 						}
 						if (ts->debug_log_level & BIT(1))
 							printk(KERN_INFO
@@ -2470,8 +2468,8 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								}
 							}
 						}
-					}
 #endif
+					}
 					if (!ts->finger_count)
 						ts->pre_finger_data[0][0] = 0;
 				}
