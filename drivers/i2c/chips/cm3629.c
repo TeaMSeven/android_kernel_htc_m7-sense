@@ -327,7 +327,7 @@ static int get_ls_adc_value(uint32_t *als_step, bool resume)
 	struct cm3629_info *lpi = lp_info;
 	uint8_t	lsb, msb;
 	int ret = 0;
-	char cmd[3];
+	char cmd[3] = {0,0,0};
 	char ls_cmd;
 
 	if (als_step == NULL)
@@ -752,7 +752,7 @@ static int lightsensor_disable(struct cm3629_info *lpi);
 static void sensor_irq_do_work(struct work_struct *work)
 {
 	struct cm3629_info *lpi = lp_info;
-	uint8_t cmd[3];
+	uint8_t cmd[3] = {0,0,0};
 	uint8_t add = 0;
 
 	
