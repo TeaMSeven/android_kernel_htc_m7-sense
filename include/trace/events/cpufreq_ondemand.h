@@ -1,8 +1,8 @@
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM cpufreq_interactive
+#define TRACE_SYSTEM cpufreq_ondemand
 
-#if !defined(_TRACE_CPUFREQ_INTERACTIVE_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_CPUFREQ_INTERACTIVE_H
+#if !defined(_TRACE_CPUFREQ_ondemand_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_CPUFREQ_ondemand_H
 
 #include <linux/tracepoint.h>
 
@@ -28,13 +28,13 @@ DECLARE_EVENT_CLASS(set,
 	      __entry->actualfreq)
 );
 
-DEFINE_EVENT(set, cpufreq_interactive_up,
+DEFINE_EVENT(set, cpufreq_ondemand_up,
 	TP_PROTO(u32 cpu_id, unsigned long targfreq,
 	     unsigned long actualfreq),
 	TP_ARGS(cpu_id, targfreq, actualfreq)
 );
 
-DEFINE_EVENT(set, cpufreq_interactive_down,
+DEFINE_EVENT(set, cpufreq_ondemand_down,
 	TP_PROTO(u32 cpu_id, unsigned long targfreq,
 	     unsigned long actualfreq),
 	TP_ARGS(cpu_id, targfreq, actualfreq)
@@ -64,25 +64,25 @@ DECLARE_EVENT_CLASS(loadeval,
 		      __entry->targfreq)
 );
 
-DEFINE_EVENT(loadeval, cpufreq_interactive_target,
+DEFINE_EVENT(loadeval, cpufreq_ondemand_target,
 	    TP_PROTO(unsigned long cpu_id, unsigned long load,
 		     unsigned long curfreq, unsigned long targfreq),
 	    TP_ARGS(cpu_id, load, curfreq, targfreq)
 );
 
-DEFINE_EVENT(loadeval, cpufreq_interactive_already,
+DEFINE_EVENT(loadeval, cpufreq_ondemand_already,
 	    TP_PROTO(unsigned long cpu_id, unsigned long load,
 		     unsigned long curfreq, unsigned long targfreq),
 	    TP_ARGS(cpu_id, load, curfreq, targfreq)
 );
 
-DEFINE_EVENT(loadeval, cpufreq_interactive_notyet,
+DEFINE_EVENT(loadeval, cpufreq_ondemand_notyet,
 	    TP_PROTO(unsigned long cpu_id, unsigned long load,
 		     unsigned long curfreq, unsigned long targfreq),
 	    TP_ARGS(cpu_id, load, curfreq, targfreq)
 );
 
-TRACE_EVENT(cpufreq_interactive_boost,
+TRACE_EVENT(cpufreq_ondemand_boost,
 	    TP_PROTO(const char *s),
 	    TP_ARGS(s),
 	    TP_STRUCT__entry(
@@ -94,7 +94,7 @@ TRACE_EVENT(cpufreq_interactive_boost,
 	    TP_printk("%s", __get_str(s))
 );
 
-TRACE_EVENT(cpufreq_interactive_unboost,
+TRACE_EVENT(cpufreq_ondemand_unboost,
 	    TP_PROTO(const char *s),
 	    TP_ARGS(s),
 	    TP_STRUCT__entry(
@@ -106,7 +106,6 @@ TRACE_EVENT(cpufreq_interactive_unboost,
 	    TP_printk("%s", __get_str(s))
 );
 
-#endif /* _TRACE_CPUFREQ_INTERACTIVE_H */
+#endif 
 
-/* This part must be outside protection */
 #include <trace/define_trace.h>
