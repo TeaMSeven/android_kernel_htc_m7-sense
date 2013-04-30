@@ -1225,7 +1225,7 @@ int l2cap_do_connect(struct sock *sk)
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
 	__u8 auth_type;
-	int err;
+	int err = 0;
 
 	BT_DBG("%s -> %s psm 0x%2.2x", batostr(src), batostr(dst),
 							l2cap_pi(sk)->psm);
@@ -1655,7 +1655,7 @@ struct sk_buff *l2cap_create_connless_pdu(struct sock *sk, struct msghdr *msg, s
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
 	struct sk_buff *skb;
-	int err, count, hlen = L2CAP_HDR_SIZE + 2;
+	int err = 0, count = 0, hlen = L2CAP_HDR_SIZE + 2;
 	struct l2cap_hdr *lh;
 
 	BT_DBG("sk %p len %d", sk, (int)len);
@@ -1713,7 +1713,7 @@ struct sk_buff *l2cap_create_iframe_pdu(struct sock *sk,
 					u16 sdulen, int reseg)
 {
 	struct sk_buff *skb;
-	int err, count, hlen;
+	int err = 0, count = 0, hlen = 0;
 	int reserve = 0;
 	struct l2cap_hdr *lh;
 	u8 fcs = l2cap_pi(sk)->fcs;
@@ -3844,7 +3844,7 @@ static void l2cap_conf_ext_fs_get(struct sock *sk, void *rsp, int len)
 static int l2cap_finish_amp_move(struct sock *sk)
 {
 	struct l2cap_pinfo *pi;
-	int err;
+	int err = 0;
 
 	BT_DBG("sk %p", sk);
 
@@ -5514,7 +5514,7 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 	struct l2cap_conn_param_update_req *req;
 	struct l2cap_conn_param_update_rsp rsp;
 	u16 min, max, latency, to_multiplier, cmd_len;
-	int err;
+	int err = 0;
 
 	if (!(hcon->link_mode & HCI_LM_MASTER))
 		return -EINVAL;
@@ -5647,7 +5647,7 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 	u8 *data = skb->data;
 	int len = skb->len;
 	struct l2cap_cmd_hdr cmd;
-	int err;
+	int err = 0;
 
 	l2cap_raw_recv(conn, skb);
 
@@ -6901,7 +6901,7 @@ int l2cap_data_channel(struct sock *sk, struct sk_buff *skb)
 
 		if (control->frame_type == 'i') {
 
-			int err;
+			int err = 0;
 
 			BT_DBG("iframe sar %d, reqseq %d, final %d, txseq %d",
 				control->sar, control->reqseq, control->final,
@@ -7512,7 +7512,7 @@ static struct hci_proto l2cap_hci_proto = {
 
 int __init l2cap_init(void)
 {
-	int err;
+	int err = 0;
 
 	err = l2cap_init_sockets();
 	if (err < 0)

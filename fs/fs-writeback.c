@@ -645,7 +645,8 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		if (force_wait)
 			work->sync_mode = WB_SYNC_ALL;
 
-		trace_writeback_exec(bdi, work);
+		/* GCC 4.7
+		trace_writeback_exec(bdi, work);*/
 
 		wrote += wb_writeback(wb, work);
 
