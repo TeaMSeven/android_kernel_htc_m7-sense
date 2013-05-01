@@ -6693,8 +6693,12 @@ static void __init reg_init(void)
 	}
 
 	if (cpu_is_apq8064()) {
+
+			pll15_config.l = 0x21 | BVAL(31, 7, 0x620);
+   			pll15_config.m = 0x1;
+    		pll15_config.n = 0x3; 
 		
-		configure_sr_pll(&pll15_config, &pll15_regs, 0);
+			configure_sr_pll(&pll15_config, &pll15_regs, 0);
 	} else if (cpu_is_apq8064ab()) {
 		
 		pll15_config.l = 0x21 | BVAL(31, 7, 0x620);
@@ -6750,7 +6754,7 @@ static void __init msm8960_clock_pre_init(void)
 			ARRAY_SIZE(msm_clocks_8960ab_only);
 	}
 	if (cpu_is_apq8064()) {
-		memcpy(gfx3d_clk.c.fmax, fmax_gfx3d_8064,
+		memcpy(gfx3d_clk.c.fmax, fmax_gfx3d_8064ab,
 		       sizeof(gfx3d_clk.c.fmax));
 	}
 	if (cpu_is_apq8064ab()) {
