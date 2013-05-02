@@ -340,8 +340,6 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	init_completion(&cpu_work->complete);
 #endif
 
-	policy->min = 192;
-	policy->max = 1728;
 	return 0;
 }
 
