@@ -370,7 +370,7 @@ static struct acpu_level tbl_PVS5_1700MHz[] __initdata = {
 	{ 0, {   384000, PLL_8, 0, 0x00 }, L2(5),   975000 },
 	{ 1, {   486000, HFPLL, 2, 0x16 }, L2(5),   875000 },
 	{ 1, {   594000, HFPLL, 1, 0x1A }, L2(5),   875000 },
-	{ 1, {   702000, HFPLL,1, 0x1E }, L2(5),   875000 },
+	{ 1, {   702000, HFPL L,1, 0x1E }, L2(5),   875000 },
 	{ 1, {   810000, HFPLL, 1, 0x22 }, L2(5),   887500 },
 	{ 1, {   918000, HFPLL, 1, 0x26 }, L2(5),   900000 },
 	{ 1, {  1026000, HFPLL, 1, 0x2A }, L2(5),   925000 },
@@ -537,7 +537,7 @@ static struct acpu_level tbl_PVS6_2000MHz[] __initdata = {
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(15), 1062500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(15), 1100000 },
 	{ 0, { 0 } }
-};
+};« NewerOlder »
 
 static struct pvs_table pvs_tables[NUM_SPEED_BINS][NUM_PVS] __initdata = {
 	[0][PVS_SLOW]    = {tbl_slow, sizeof(tbl_slow),     0 },
