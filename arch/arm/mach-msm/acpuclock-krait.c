@@ -929,7 +929,7 @@ ssize_t acpuclk_set_vdd(char *buf) {
 #endif
 
 #ifdef CONFIG_CPU_FREQ_MSM
-static struct cpufreq_frequency_table freq_table[NR_CPUS][35];
+static struct cpufreq_frequency_table freq_table[NR_CPUS][36];
 
 static void __init cpufreq_table_init(void)
 {
