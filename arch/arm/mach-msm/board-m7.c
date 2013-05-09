@@ -80,8 +80,6 @@
 #ifdef CONFIG_PERFLOCK
 #include <mach/perflock.h>
 #endif
-
-
 #ifdef CONFIG_BT
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_bdaddress.h>
@@ -3636,13 +3634,13 @@ static struct msm_rpmrs_platform_data msm_rpmrs_data __initdata = {
 		[MSM_RPMRS_VDD_MEM_RET_LOW]	= 750000,
 		[MSM_RPMRS_VDD_MEM_RET_HIGH]	= 750000,
 		[MSM_RPMRS_VDD_MEM_ACTIVE]	= 1050000,
-		[MSM_RPMRS_VDD_MEM_MAX]		= 1150000,
+		[MSM_RPMRS_VDD_MEM_MAX]		= 1250000,
 	},
 	.vdd_dig_levels = {
 		[MSM_RPMRS_VDD_DIG_RET_LOW]	= 500000,
 		[MSM_RPMRS_VDD_DIG_RET_HIGH]	= 750000,
 		[MSM_RPMRS_VDD_DIG_ACTIVE]	= 950000,
-		[MSM_RPMRS_VDD_DIG_MAX]		= 1150000,
+		[MSM_RPMRS_VDD_DIG_MAX]		= 1250000,
 	},
 	.vdd_mask = 0x7FFFFF,
 	.rpmrs_target_id = {

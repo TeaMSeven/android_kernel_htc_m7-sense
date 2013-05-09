@@ -294,12 +294,12 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	if (cpufreq_frequency_table_cpuinfo(policy, table)) {
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 		policy->cpuinfo.min_freq = 162000;
-		policy->cpuinfo.max_freq = 1728000;
+		policy->cpuinfo.max_freq = 1890000;
 #endif
 	}
 #ifdef CONFIG_MSM_CPU_FREQ_SET_MIN_MAX
 	policy->min = 162000;
-	policy->max = 1728000;
+	policy->max = 1890000;
 #endif
 
 #ifdef CONFIG_ARCH_APQ8064
@@ -330,7 +330,7 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 		cur_freq = table[index].frequency;
 	}
 
-	policy->cur = cur_freq;
+	policy->cur = 1728000;
 
 	policy->cpuinfo.transition_latency =
 		acpuclk_get_switch_time() * NSEC_PER_USEC;
