@@ -174,7 +174,9 @@ int h2w_temp = 1;
 int l2m_switch = 1; // 0 -> No menu map, 1 Menu map
 int l2m_temp = 1;
 
-int logo_delay_switch = 1; // if 1 -> Logo2Sleep will wait for long tap, if 0, it won't wait for no jiffies.
+int logo_delay_switch = 1; // if 1 -> Logo2Sleep/Logo2Wake will wait for long tap, if 0, it won't wait for no jiffies.
+
+int sleep_wake_vibration_time = 6; // length of vibration in msec/5 - set 0 to deactivate it, 1 -> 5, 2 -> 10, 6 -> 30, 9 -> 45 (max)
 
 bool exec_count = true, h2w_switch_changed = false, s2w_switch_changed = false;
 bool scr_on_touch = false, led_exec_count = false, barrier[2] = {false, false};
@@ -248,7 +250,10 @@ static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
 	    return;
 	break_longtap_count = 1;
 	printk("sending event KEY_POWER 1\n");
-	vibrate(30);
+	if (sleep_wake_vibration_time)
+	{
+		vibrate(sleep_wake_vibration_time * 5);
+	}
 	input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 1);
 	input_sync(sweep2wake_pwrdev);
 	msleep(100);
@@ -313,7 +318,10 @@ static void sweep2wake_longtap_count(struct work_struct * sweep2wake_longtap_cou
 	if (!break_longtap_count)
 	{
 		printk("LONGTAP sending event KEY_POWER 1\n");
-		vibrate(30);
+		if (sleep_wake_vibration_time)
+		{
+			vibrate(sleep_wake_vibration_time * 5);
+		}
 		input_event(sweep2wake_pwrdev, EV_KEY, KEY_POWER, 1);
 		input_sync(sweep2wake_pwrdev);
 		msleep(100);
@@ -1773,6 +1781,32 @@ static ssize_t synaptics_logo_delay_dump(struct device *dev,
 static DEVICE_ATTR(logo_delay, (S_IWUSR|S_IRUGO),
 	synaptics_logo_delay_show, synaptics_logo_delay_dump);
 
+static ssize_t synaptics_sleep_wake_vibration_time_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+
+	count += sprintf(buf, "%d\n", sleep_wake_vibration_time);
+
+	return count;
+}
+
+static ssize_t synaptics_sleep_wake_vibration_time_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] >= '0' && buf[0] <= '9' && buf[1] == '\n')
+		if (sleep_wake_vibration_time != buf[0] - '0') {
+			sleep_wake_vibration_time = buf[0] - '0';
+		}
+
+	printk(KERN_INFO "[sleep_wake_vibration_time]: %d.\n", sleep_wake_vibration_time);
+
+
+	return count;
+}
+
+static DEVICE_ATTR(sleep_wake_vibration_time, (S_IWUSR|S_IRUGO),
+	synaptics_sleep_wake_vibration_time_show, synaptics_sleep_wake_vibration_time_dump);
 
 #endif
 
@@ -1834,6 +1868,11 @@ static int synaptics_touch_sysfs_init(void)
 		printk(KERN_ERR "%s: sysfs_create_file failed\n", __func__);
 		return ret;
 	}
+		ret = sysfs_create_file(android_touch_kobj, &dev_attr_sleep_wake_vibration_time.attr);
+	if (ret) {
+		printk(KERN_ERR "%s: sysfs_create_file failed\n", __func__);
+		return ret;
+	}
 	
 #endif
 
@@ -1888,6 +1927,7 @@ static void synaptics_touch_sysfs_remove(void)
 	sysfs_remove_file(android_touch_kobj, &dev_attr_home2wake.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_logo2menu.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_logo_delay.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_sleep_wake_vibration_time.attr);
 #endif
 #ifdef SYN_WIRELESS_DEBUG
 	sysfs_remove_file(android_touch_kobj, &dev_attr_enabled.attr);
@@ -2018,36 +2058,37 @@ static int report_htc_logo_area(int x, int y)
 
     if (last_touch_position_x>600 && last_touch_position_x<1200)
     {
-	int below_y = 2835;
-	if (scr_suspended == true)
-	{
-	    // if screen is suspended we can use a bigger area for Logo tapping (easier wake)
-	    below_y = 2750;
-	}
-
-	if (last_touch_position_y > below_y)
-	{
-	    if (logo_press_state == 0)
-	    {
-		logo_press_state = 1;
-		logo_last_pressed_time = jiffies;
-	    }
-	    printk("[L2W]\n");
-	    if (logo_press_state == 1)
-	    {
-		if (jiffies - logo_last_pressed_time > BETWEEN_LONG_PRESS_MIN_DIFF)
+		int below_y = 2835;
+		if (scr_suspended == true)
 		{
-			printk("[L2W] - LONG PRESS ON LOGO POSSIBLE\n");
-			return 3;
-		} else
-		if (jiffies - logo_last_pressed_time > BETWEEN_SLEEP_OR_WAKE_PRESS_MIN_DIFF)
-		{
-			printk("[L2W] - SLEEP OR WAKE PRESS ON LOGO POSSIBLE\n");
-			return 2;
+			// if screen is suspended we can use a bigger area for Logo tapping (easier wake)
+			below_y = 2750;
 		}
-	    }
-	    return 1;
-	}
+
+		if (last_touch_position_y > below_y)
+		{
+			if (logo_press_state == 0)
+			{
+				logo_press_state = 1;
+				logo_last_pressed_time = jiffies;
+				return 1;
+			}
+			printk("[L2W]\n");
+			if (logo_press_state == 1)
+			{
+				if (jiffies - logo_last_pressed_time > BETWEEN_LONG_PRESS_MIN_DIFF)
+				{
+					printk("[L2W] - LONG PRESS ON LOGO POSSIBLE\n");
+					return 3;
+				} else
+				if (jiffies - logo_last_pressed_time > BETWEEN_SLEEP_OR_WAKE_PRESS_MIN_DIFF)
+				{
+					printk("[L2W] - SLEEP OR WAKE PRESS ON LOGO POSSIBLE\n");
+					return 2;
+				}
+			}
+			return 1;
+		}
     }
     logo_press_state = 0;
     break_longtap_count = 1; // not in area, stop counting
@@ -2286,7 +2327,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								{
 									// long press logo, power off
 									// OFF
-									//sweep2wake_pwrtrigger();
+									//sweep2wake_pwrtrigger(); // commented - long tap time count worker used instead
 								} else
 								{
 									// MENU
@@ -2294,9 +2335,10 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								}
 							} else
 							{
+								// no logo2menu branch...
 								if (h2w_switch >= 2)
-								{ // logo to sleep or logo to wake enabled. screen is on, switch it off
-									if (report_ret == 2 && logo_delay_switch == 0) // 3 = enough time passed for long tap, or logo delay is off
+								{ //  logo to wake (h2w_switch 3) or at least logo to sleep (h2w_switch 2) enabled. screen is on, switch it off
+									if (report_ret >= 2 && logo_delay_switch == 0) // 2 or 3 = enough time passed for non-accidental tap and logo delay is off
 									{
 										// OFF
 										sweep2wake_pwrtrigger();
@@ -2307,10 +2349,10 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						{
 							if (h2w_switch == 3)
 							{ // logo to wake enabled. screen is off, switch it on
-								if (report_ret >= 2) // 2 or 3 = enough time passed for non-accidental tap, power on
+								if (report_ret >= 2 && logo_delay_switch == 0) // 2 or 3 = enough time passed for non-accidental tap, power on
 								{
 									// ON
-									//sweep2wake_pwrtrigger();
+									sweep2wake_pwrtrigger();
 								}
 							}
 						}
@@ -2444,25 +2486,26 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								{
 									if (h2w_switch >= 2)
 									{ // logo to sleep or logo to wake enabled. screen is on, switch it off
-										if ((l2m_switch == 0 && logo_delay_switch == 0)) // 3 = enough time passed for long tap, or logo delay is off
+										if (l2m_switch == 0 && logo_delay_switch == 0 && report_ret == 3) // 3 = enough time passed for long tap, or logo delay is off
 										{
-											// OFF
-											sweep2wake_pwrtrigger();
+											// OFF 
+											//sweep2wake_pwrtrigger(); // - don't sleep here, on short tap, only sleep when user finger left touchscreen
 										} else
+										if (logo_delay_switch == 1)
 										{
 											// long tap needed, start counting
 											sweep2wake_longtap_count_trigger();
 										}
 									} else
 									// logo2menu enabled and some wake option too - longtap count for power off can start
-									if (l2m_switch > 0 && (s2w_switch > 0 || h2w_switch > 0))
+									if (l2m_switch > 0 && (s2w_switch > 0 || h2w_switch > 0) && logo_delay_switch == 1)
 									{
 											sweep2wake_longtap_count_trigger();
 									}
 								} else
 								{
-									if (s2w_switch == 0 && h2w_switch == 3)
-									{ // logo to wake enabled. screen is off, start counting
+									if (s2w_switch == 0 && h2w_switch == 3 && logo_delay_switch == 1)
+									{ // logo to wake enabled with logo Delay. screen is off, start counting
 										sweep2wake_longtap_count_trigger();
 									}
 								}
@@ -2504,25 +2547,26 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								{
 									if (h2w_switch >= 2)
 									{ // logo to sleep or logo to wake enabled. screen is on, switch it off
-										if ((l2m_switch == 0 && logo_delay_switch == 0)) // 3 = enough time passed for long tap, or logo delay is off
+										if (l2m_switch == 0 && logo_delay_switch == 0 && report_ret == 3) // 3 = enough time passed for long tap, or logo delay is off
 										{
-											// OFF
-											sweep2wake_pwrtrigger();
+											// OFF 
+											//sweep2wake_pwrtrigger(); // - don't sleep here, on short tap, only sleep when user finger left touchscreen
 										} else
+										if (logo_delay_switch == 1)
 										{
 											// long tap needed, start counting
 											sweep2wake_longtap_count_trigger();
 										}
 									} else
 									// logo2menu enabled and some wake option too - longtap count for power off can start
-									if (l2m_switch > 0 && (s2w_switch > 0 || h2w_switch > 0))
+									if (l2m_switch > 0 && (s2w_switch > 0 || h2w_switch > 0) && logo_delay_switch == 1)
 									{
 											sweep2wake_longtap_count_trigger();
 									}
 								} else
 								{
-									if (s2w_switch == 0 && h2w_switch == 3)
-									{ // logo to wake enabled. screen is off, start counting
+									if (s2w_switch == 0 && h2w_switch == 3 && logo_delay_switch == 1)
+									{ // logo to wake enabled with logo Delay. screen is off, start counting
 										sweep2wake_longtap_count_trigger();
 									}
 								}
@@ -2550,25 +2594,26 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								{
 									if (h2w_switch >= 2)
 									{ // logo to sleep or logo to wake enabled. screen is on, switch it off
-										if ((l2m_switch == 0 && logo_delay_switch == 0)) // 3 = enough time passed for long tap, or logo delay is off
+										if (l2m_switch == 0 && logo_delay_switch == 0 && report_ret == 3) // 3 = enough time passed for long tap, or logo delay is off
 										{
-											// OFF
-											sweep2wake_pwrtrigger();
+											// OFF 
+											//sweep2wake_pwrtrigger(); // - don't sleep here, on short tap, only sleep when user finger left touchscreen
 										} else
+										if (logo_delay_switch == 1)
 										{
 											// long tap needed, start counting
 											sweep2wake_longtap_count_trigger();
 										}
 									} else
 									// logo2menu enabled and some wake option too - longtap count for power off can start
-									if (l2m_switch > 0 && (s2w_switch > 0 || h2w_switch > 0))
+									if (l2m_switch > 0 && (s2w_switch > 0 || h2w_switch > 0) && logo_delay_switch == 1)
 									{
 											sweep2wake_longtap_count_trigger();
 									}
 								} else
 								{
-									if (s2w_switch == 0 && h2w_switch == 3)
-									{ // logo to wake enabled. screen is off, start counting
+									if (s2w_switch == 0 && h2w_switch == 3 && logo_delay_switch == 1)
+									{ // logo to wake enabled with logo Delay. screen is off, start counting
 										sweep2wake_longtap_count_trigger();
 									}
 								}
