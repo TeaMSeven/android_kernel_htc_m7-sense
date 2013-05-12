@@ -485,7 +485,7 @@ m7_gpio_regulator_pdata[] __devinitdata = {
 
 struct regulator_init_data m7_saw_regulator_pdata_8921_s5 =
 	
-	SAW_VREG_INIT(S5, "8921_s5",	       750000, 1300000);
+	SAW_VREG_INIT(S5, "8921_s5",	       750000, 1350000);
 struct regulator_init_data m7_saw_regulator_pdata_8921_s6 =
 	SAW_VREG_INIT(S6, "8921_s6",	       750000, 1350000);
 
