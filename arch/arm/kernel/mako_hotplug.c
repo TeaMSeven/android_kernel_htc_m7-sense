@@ -32,8 +32,8 @@ const int SEC_THRESHOLD = 2000;
 #define ONLINE_CPU_BOOST get_hispeed_freq()
 #define HISTORY_SIZE 10
 #define DEFAULT_FIRST_LEVEL 80
-#define DEFAULT_SECOND_LEVEL 50
-#define DEFAULT_THIRD_LEVEL 30
+#define DEFAULT_SECOND_LEVEL 45
+#define DEFAULT_THIRD_LEVEL 25
 #define DEFAULT_FOURTH_LEVEL 10
 #define DEFAULT_SUSPEND_FREQ 702000
 #define DEFAULT_CORES_ON_TOUCH 2
@@ -70,11 +70,10 @@ void is_touching(bool touch, unsigned long time_off,
 }
 
 static void scale_interactive_tunables(unsigned int above_hispeed_delay,
-    unsigned int go_hispeed_load, unsigned int timer_rate, 
+    unsigned int timer_rate, 
     unsigned int min_sample_time)
 {
     scale_above_hispeed_delay(above_hispeed_delay);
-    scale_go_hispeed_load(go_hispeed_load);
     scale_timer_rate(timer_rate);
     scale_min_sample_time(min_sample_time);
 }
@@ -89,30 +88,33 @@ static void first_level_work_check(unsigned long now)
     {
         /* 5 seconds in high load to scale tunables up */
         if (now - stats.time_stamp >= 5000)
-            scale_interactive_tunables(0, 80, 10000, 80000);
+            scale_interactive_tunables(0, 10000, 80000);
 
         return;
     }
 
-    for_each_possible_cpu(cpu)
+   for_each_possible_cpu(cpu)
     {
         if (cpu && likely(!cpu_online(cpu)))
         {
             cpu_up(cpu);
 
-            /* lets boost the onlined cpu to 1GHz (default).
-               stays there for at least a sample. If the CPU is
-               going online its because we need the power, so we
-               might save some ms boosting it up already in the
-               onlining process */
+    		if (lock_policy_rwsem_write(cpu) < 0){
+    			continue;
+    		}
+			
+			if (!cpu_online(cpu)){
+				continue;
+			}
             cpufreq_get_policy(&policy, cpu);
             __cpufreq_driver_target(&policy, ONLINE_CPU_BOOST, 
                 CPUFREQ_RELATION_H);
-            
-            pr_info("Hotplug: cpu%d is up - high load\n", cpu);
+
+        	unlock_policy_rwsem_write(cpu);
+            pr_info("Hotplug: cpu%d is up - medium load\n", cpu);
+            break;
         }
     }
-
     stats.time_stamp = now;
 }
 
@@ -123,7 +125,13 @@ static void second_level_work_check(unsigned long now)
 
     /* lets bail if all cores are online */
     if (stats.online_cpus == stats.total_cpus)
+    {
+        /* 5 seconds in high load to scale tunables up */
+        if (now - stats.time_stamp >= 5000)
+            scale_interactive_tunables(0, 10000, 80000);
+
         return;
+    }
 
     for_each_possible_cpu(cpu)
     {
@@ -131,13 +139,22 @@ static void second_level_work_check(unsigned long now)
         {
             cpu_up(cpu);
 
+    		if (lock_policy_rwsem_write(cpu) < 0){
+    			continue;
+    		}
+			
+			if (!cpu_online(cpu)){
+				continue;
+			}
             cpufreq_get_policy(&policy, cpu);
             __cpufreq_driver_target(&policy, ONLINE_CPU_BOOST, 
                 CPUFREQ_RELATION_H);
 
+        	unlock_policy_rwsem_write(cpu);
             pr_info("Hotplug: cpu%d is up - medium load\n", cpu);
             break;
         }
+    
     }
 
     stats.time_stamp = now;
@@ -154,7 +171,7 @@ static void third_level_work_check(unsigned int load, unsigned long now)
     {   
         for_each_online_cpu(cpu)
         {
-            if (cpu)
+            if (likely(cpu))
             {
                 cpu_down(cpu);
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
@@ -166,7 +183,7 @@ static void third_level_work_check(unsigned int load, unsigned long now)
     {
         for_each_online_cpu(cpu)
         {
-            if (cpu)
+            if (likely(cpu))
             {
                 cpu_down(cpu);
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
@@ -176,7 +193,7 @@ static void third_level_work_check(unsigned int load, unsigned long now)
     }
 
     if (likely(num_online_cpus() < 3))
-        scale_interactive_tunables(10000, 95, 50000, 20000);
+        scale_interactive_tunables(20000, 35000, 20000);
 
     stats.time_stamp = now;
 }
@@ -379,8 +396,7 @@ int __init mako_hotplug_init(void)
     stats.suspend_frequency = DEFAULT_SUSPEND_FREQ;
     stats.cores_on_touch = DEFAULT_CORES_ON_TOUCH;
     
-    wq = alloc_workqueue("mako_hotplug_workqueue",
-                         WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
+    wq = alloc_workqueue("mako_hotplug_workqueue", WQ_HIGHPRI, 1);
     
     if (!wq)
         return -ENOMEM;
