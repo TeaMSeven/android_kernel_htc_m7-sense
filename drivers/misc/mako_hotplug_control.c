@@ -9,20 +9,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
+#include <linux/hotplug.h>
 
-#define MAKO_HOTPLUG_CONTROL_VERSION 1
-
-unsigned int first_level = 90;
-unsigned int second_level = 25;
-unsigned int third_level = 50;
-
-unsigned int suspend_frequency = 702000;
-
-extern void update_first_level(unsigned int level);
-extern void update_second_level(unsigned int level);
-extern void update_third_level(unsigned int level);
-
-extern void update_suspend_freq(unsigned int freq);
+#define MAKO_HOTPLUG_CONTROL_VERSION 2
 
 /*
  * Sysfs get/set entries
@@ -30,7 +19,7 @@ extern void update_suspend_freq(unsigned int freq);
 
 static ssize_t first_level_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%u\n", first_level);
+    return sprintf(buf, "%u\n", get_first_level());
 }
 
 static ssize_t first_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
@@ -39,10 +28,9 @@ static ssize_t first_level_store(struct device *dev, struct device_attribute *at
     
 	sscanf(buf, "%u", &new_val);
     
-    if (new_val != first_level && new_val >= 0 && new_val <= 100)
+    if (new_val != get_first_level() && new_val >= 0 && new_val <= 100)
     {
         update_first_level(new_val);
-        first_level = new_val;
     }
     
     return size;
@@ -50,7 +38,7 @@ static ssize_t first_level_store(struct device *dev, struct device_attribute *at
 
 static ssize_t second_level_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%u\n", second_level);
+    return sprintf(buf, "%u\n", get_second_level());
 }
 
 static ssize_t second_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
@@ -59,10 +47,9 @@ static ssize_t second_level_store(struct device *dev, struct device_attribute *a
     
 	sscanf(buf, "%u", &new_val);
     
-    if (new_val != second_level && new_val >= 0 && new_val <= 100)
+    if (new_val != get_second_level() && new_val >= 0 && new_val <= 100)
     {
         update_second_level(new_val);
-        second_level = new_val;
     }
     
     return size;
@@ -70,7 +57,7 @@ static ssize_t second_level_store(struct device *dev, struct device_attribute *a
 
 static ssize_t third_level_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%u\n", third_level);
+    return sprintf(buf, "%u\n", get_third_level());
 }
 
 static ssize_t third_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
@@ -79,10 +66,28 @@ static ssize_t third_level_store(struct device *dev, struct device_attribute *at
     
 	sscanf(buf, "%u", &new_val);
     
-    if (new_val != third_level && new_val >= 0 && new_val <= 100)
+    if (new_val != get_third_level() && new_val >= 0 && new_val <= 100)
     {
         update_third_level(new_val);
-        third_level = new_val;
+    }
+    
+    return size;
+}
+
+static ssize_t fourth_level_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%u\n", get_fourth_level());
+}
+
+static ssize_t fourth_level_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+    unsigned int new_val;
+    
+    sscanf(buf, "%u", &new_val);
+    
+    if (new_val != get_fourth_level() && new_val >= 0 && new_val <= 100)
+    {
+        update_fourth_level(new_val);
     }
     
     return size;
@@ -90,7 +95,7 @@ static ssize_t third_level_store(struct device *dev, struct device_attribute *at
 
 static ssize_t suspend_frequency_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%u\n", suspend_frequency);
+    return sprintf(buf, "%u\n", get_suspend_frequency());
 }
 
 static ssize_t suspend_frequency_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
@@ -99,10 +104,28 @@ static ssize_t suspend_frequency_store(struct device *dev, struct device_attribu
     
 	sscanf(buf, "%u", &new_val);
     
-    if (new_val != suspend_frequency && new_val >= 0 && new_val <= 1512000)
+    if (new_val != get_suspend_frequency() && new_val >= 0 && new_val <= 1512000)
     {
-        update_suspend_freq(new_val);
-        suspend_frequency = new_val;
+        update_suspend_frequency(new_val);
+    }
+    
+    return size;
+}
+
+static ssize_t cores_on_touch_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%u\n", get_cores_on_touch());
+}
+
+static ssize_t cores_on_touch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+    unsigned int new_val;
+    
+    sscanf(buf, "%u", &new_val);
+    
+    if (new_val != get_cores_on_touch() && new_val >= 0 && new_val <= 4)
+    {
+        update_cores_on_touch(new_val);
     }
     
     return size;
@@ -116,8 +139,9 @@ static ssize_t mako_hotplug_control_version(struct device *dev, struct device_at
 static DEVICE_ATTR(first_level, 0777, first_level_show, first_level_store);
 static DEVICE_ATTR(second_level, 0777, second_level_show, second_level_store);
 static DEVICE_ATTR(third_level, 0777, third_level_show, third_level_store);
+static DEVICE_ATTR(fourth_level, 0777, fourth_level_show, fourth_level_store);
 static DEVICE_ATTR(suspend_frequency, 0777, suspend_frequency_show, suspend_frequency_store);
-
+static DEVICE_ATTR(cores_on_touch, 0777, cores_on_touch_show, cores_on_touch_store);
 static DEVICE_ATTR(version, 0777 , mako_hotplug_control_version, NULL);
 
 static struct attribute *mako_hotplug_control_attributes[] =
@@ -125,7 +149,9 @@ static struct attribute *mako_hotplug_control_attributes[] =
 	&dev_attr_first_level.attr,
     &dev_attr_second_level.attr,
     &dev_attr_third_level.attr,
+    &dev_attr_fourth_level.attr,
     &dev_attr_suspend_frequency.attr,
+    &dev_attr_cores_on_touch.attr,
 	&dev_attr_version.attr,
 	NULL
 };
