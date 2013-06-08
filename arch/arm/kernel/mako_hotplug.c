@@ -31,9 +31,9 @@ const int SEC_THRESHOLD = 2000;
 
 #define ONLINE_CPU_BOOST get_hispeed_freq()
 #define HISTORY_SIZE 10
-#define DEFAULT_FIRST_LEVEL 80
-#define DEFAULT_SECOND_LEVEL 50
-#define DEFAULT_THIRD_LEVEL 30
+#define DEFAULT_FIRST_LEVEL 70
+#define DEFAULT_SECOND_LEVEL 40
+#define DEFAULT_THIRD_LEVEL 20
 #define DEFAULT_FOURTH_LEVEL 10
 #define DEFAULT_SUSPEND_FREQ 702000
 #define DEFAULT_CORES_ON_TOUCH 2
@@ -94,25 +94,28 @@ static void first_level_work_check(unsigned long now)
         return;
     }
 
-    for_each_possible_cpu(cpu)
+   for_each_possible_cpu(cpu)
     {
         if (cpu && likely(!cpu_online(cpu)))
         {
             cpu_up(cpu);
 
-            /* lets boost the onlined cpu to 1GHz (default).
-               stays there for at least a sample. If the CPU is
-               going online its because we need the power, so we
-               might save some ms boosting it up already in the
-               onlining process */
+    		if (lock_policy_rwsem_write(cpu) < 0){
+    			continue;
+    		}
+			
+			if (!cpu_online(cpu)){
+				continue;
+			}
             cpufreq_get_policy(&policy, cpu);
             __cpufreq_driver_target(&policy, ONLINE_CPU_BOOST, 
                 CPUFREQ_RELATION_H);
-            
-            pr_info("Hotplug: cpu%d is up - high load\n", cpu);
+
+        	unlock_policy_rwsem_write(cpu);
+            pr_info("Hotplug: cpu%d is up - medium load\n", cpu);
+            break;
         }
     }
-
     stats.time_stamp = now;
 }
 
@@ -137,13 +140,22 @@ static void second_level_work_check(unsigned long now)
         {
             cpu_up(cpu);
 
+    		if (lock_policy_rwsem_write(cpu) < 0){
+    			continue;
+    		}
+			
+			if (!cpu_online(cpu)){
+				continue;
+			}
             cpufreq_get_policy(&policy, cpu);
             __cpufreq_driver_target(&policy, ONLINE_CPU_BOOST, 
                 CPUFREQ_RELATION_H);
 
+        	unlock_policy_rwsem_write(cpu);
             pr_info("Hotplug: cpu%d is up - medium load\n", cpu);
             break;
         }
+    
     }
 
     stats.time_stamp = now;
