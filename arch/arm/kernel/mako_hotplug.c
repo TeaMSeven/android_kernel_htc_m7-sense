@@ -27,11 +27,9 @@
 
 #include <mach/cpufreq.h>
 
-const int SEC_THRESHOLD = 2000;
-
-#define ONLINE_CPU_BOOST get_hispeed_freq()
+#define SEC_THRESHOLD 2000
 #define HISTORY_SIZE 10
-#define DEFAULT_FIRST_LEVEL 80
+#define DEFAULT_FIRST_LEVEL 90
 #define DEFAULT_SECOND_LEVEL 50
 #define DEFAULT_THIRD_LEVEL 30
 #define DEFAULT_FOURTH_LEVEL 10
@@ -56,17 +54,14 @@ static struct workqueue_struct *wq;
 static struct delayed_work decide_hotplug;
 
 bool is_touched = false;
-bool one_touch_flag = true;
 unsigned long touch_off_time = 0;
 unsigned int load_history[HISTORY_SIZE] = {0};
 unsigned int counter = 0;
 
-void is_touching(bool touch, unsigned long time_off,
-    bool one_touch)
+void is_touching(bool touch, unsigned long time_off)
 {
     is_touched = touch;
     touch_off_time = time_off;
-    one_touch_flag = one_touch;
 }
 
 static void scale_interactive_tunables(unsigned int above_hispeed_delay,
@@ -82,36 +77,21 @@ static void scale_interactive_tunables(unsigned int above_hispeed_delay,
 static void first_level_work_check(unsigned long now)
 {
     unsigned int cpu = nr_cpu_ids;
-    struct cpufreq_policy policy;
     
     /* lets bail if all cores are online */
     if (stats.online_cpus == stats.total_cpus)
-    {
-        /* 5 seconds in high load to scale tunables up */
-        if (now - stats.time_stamp >= 5000)
-            scale_interactive_tunables(0, 80, 10000, 80000);
-
         return;
-    }
 
     for_each_possible_cpu(cpu)
     {
-        if (cpu && likely(!cpu_online(cpu)))
+        if (cpu && !cpu_online(cpu))
         {
             cpu_up(cpu);
-
-            /* lets boost the onlined cpu to 1GHz (default).
-               stays there for at least a sample. If the CPU is
-               going online its because we need the power, so we
-               might save some ms boosting it up already in the
-               onlining process */
-            cpufreq_get_policy(&policy, cpu);
-            __cpufreq_driver_target(&policy, ONLINE_CPU_BOOST, 
-                CPUFREQ_RELATION_H);
-            
             pr_info("Hotplug: cpu%d is up - high load\n", cpu);
         }
     }
+
+    scale_interactive_tunables(0, 80, 10, 80);
 
     stats.time_stamp = now;
 }
@@ -119,7 +99,6 @@ static void first_level_work_check(unsigned long now)
 static void second_level_work_check(unsigned long now)
 {
     unsigned int cpu = nr_cpu_ids;
-    struct cpufreq_policy policy;
 
     /* lets bail if all cores are online */
     if (stats.online_cpus == stats.total_cpus)
@@ -127,18 +106,19 @@ static void second_level_work_check(unsigned long now)
 
     for_each_possible_cpu(cpu)
     {
-        if (cpu && likely(!cpu_online(cpu)))
+        if (cpu && !cpu_online(cpu))
         {
             cpu_up(cpu);
-
-            cpufreq_get_policy(&policy, cpu);
-            __cpufreq_driver_target(&policy, ONLINE_CPU_BOOST, 
-                CPUFREQ_RELATION_H);
-
             pr_info("Hotplug: cpu%d is up - medium load\n", cpu);
             break;
         }
     }
+
+    if (stats.online_cpus == 1)
+        scale_interactive_tunables(50, 99, 30, 20);
+ 
+    else if (stats.online_cpus == 3) 
+        scale_interactive_tunables(0, 80, 10, 80);
 
     stats.time_stamp = now;
 }
@@ -160,6 +140,8 @@ static void third_level_work_check(unsigned int load, unsigned long now)
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
             }
         }
+
+        scale_interactive_tunables(15, 99, 25, 40);
     }
 
     else if (load <= third_level)
@@ -172,11 +154,8 @@ static void third_level_work_check(unsigned int load, unsigned long now)
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
                 break;
             }
-        }        
+        }
     }
-
-    if (likely(num_online_cpus() < 3))
-        scale_interactive_tunables(10000, 95, 50000, 20000);
 
     stats.time_stamp = now;
 }
@@ -199,7 +178,7 @@ static void decide_hotplug_func(struct work_struct *work)
             j = HISTORY_SIZE;
     }
     
-    if (unlikely(++counter == HISTORY_SIZE))
+    if (++counter == HISTORY_SIZE)
         counter = 0;
 
     load = load/HISTORY_SIZE;
@@ -234,15 +213,9 @@ static void decide_hotplug_func(struct work_struct *work)
     else if (is_touched)
     {   
         if (now >= touch_off_time + SEC_THRESHOLD)
-        {
-            /* only call scale function if dynamic_scaling is true */
-            if (likely(get_dynamic_scaling()))
-                scale_min_sample_time(20000);
             is_touched = false;
-        }
 
-        else if (stats.online_cpus < stats.cores_on_touch &&
-            !one_touch_flag)
+        else if (stats.online_cpus < stats.cores_on_touch)
         {
             second_level_work_check(now);
             queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(HZ));           
@@ -269,8 +242,8 @@ static void decide_hotplug_func(struct work_struct *work)
 static void mako_hotplug_early_suspend(struct early_suspend *handler)
 {	 
     /* cancel the hotplug work when the screen is off and flush the WQ */
-    cancel_delayed_work_sync(&decide_hotplug);
     flush_workqueue(wq);
+    cancel_delayed_work_sync(&decide_hotplug);
     pr_info("Early Suspend stopping Hotplug work...\n");
     
     third_level_work_check(0, ktime_to_ms(ktime_get()));
@@ -284,8 +257,15 @@ static void mako_hotplug_early_suspend(struct early_suspend *handler)
 
 static void mako_hotplug_late_resume(struct early_suspend *handler)
 {    
+    int i;
+
     /* online all cores when the screen goes online */
     first_level_work_check(ktime_to_ms(ktime_get()));
+
+    /* feed the buffer with fake load so that it doesn't average from low
+       values and derp the UI interactivity after screening on */
+    for (i = 0; i < HISTORY_SIZE; i++)
+        load_history[i] = 100;
 
     /* restore max frequency */
     msm_cpufreq_set_freq_limits(0, MSM_CPUFREQ_NO_LIMIT, MSM_CPUFREQ_NO_LIMIT);
