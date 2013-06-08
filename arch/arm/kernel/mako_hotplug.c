@@ -123,7 +123,13 @@ static void second_level_work_check(unsigned long now)
 
     /* lets bail if all cores are online */
     if (stats.online_cpus == stats.total_cpus)
+    {
+        /* 5 seconds in high load to scale tunables up */
+        if (now - stats.time_stamp >= 5000)
+            scale_interactive_tunables(0, 80, 10000, 80000);
+
         return;
+    }
 
     for_each_possible_cpu(cpu)
     {
@@ -154,7 +160,7 @@ static void third_level_work_check(unsigned int load, unsigned long now)
     {   
         for_each_online_cpu(cpu)
         {
-            if (cpu)
+            if (likely(cpu))
             {
                 cpu_down(cpu);
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
@@ -166,7 +172,7 @@ static void third_level_work_check(unsigned int load, unsigned long now)
     {
         for_each_online_cpu(cpu)
         {
-            if (cpu)
+            if (likely(cpu))
             {
                 cpu_down(cpu);
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
