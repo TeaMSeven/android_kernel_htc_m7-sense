@@ -34,5 +34,6 @@ extern void is_touching(bool touch, unsigned long time,
 extern unsigned int get_input_boost_freq(void);
 extern unsigned int get_min_sample_time(void);
 extern bool get_dynamic_scaling(void);
+extern unsigned int get_hispeed_freq(void);
 
 #endif
