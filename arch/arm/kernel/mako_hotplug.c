@@ -54,14 +54,17 @@ static struct workqueue_struct *wq;
 static struct delayed_work decide_hotplug;
 
 bool is_touched = false;
+bool one_touch_flag = true;
 unsigned long touch_off_time = 0;
 unsigned int load_history[HISTORY_SIZE] = {0};
 unsigned int counter = 0;
 
-void is_touching(bool touch, unsigned long time_off)
+void is_touching(bool touch, unsigned long time_off,
+    bool one_touch)
 {
     is_touched = touch;
     touch_off_time = time_off;
+    one_touch_flag = one_touch;
 }
 
 static void scale_interactive_tunables(unsigned int above_hispeed_delay,
@@ -112,6 +115,9 @@ static void second_level_work_check(unsigned long now)
         }
     }
 
+    if (num_online_cpus() == 3) 
+        scale_interactive_tunables(0, 80, 10000, 80000);
+
     stats.time_stamp = now;
 }
 
@@ -132,8 +138,6 @@ static void third_level_work_check(unsigned int load, unsigned long now)
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
             }
         }
-
-        scale_interactive_tunables(50, 99, 30, 20);
     }
 
     else if (load <= third_level)
@@ -146,11 +150,11 @@ static void third_level_work_check(unsigned int load, unsigned long now)
                 pr_info("Hotplug: cpu%d is down - low load\n", cpu);
                 break;
             }
-        }
-
-        if (stats.online_cpus < 3)
-            scale_interactive_tunables(50, 99, 30, 20);
+        }        
     }
+
+    if (likely(num_online_cpus() < 3))
+        scale_interactive_tunables(15000, 99, 30000, 40000);
 
     stats.time_stamp = now;
 }
@@ -173,7 +177,7 @@ static void decide_hotplug_func(struct work_struct *work)
             j = HISTORY_SIZE;
     }
     
-    if (++counter == HISTORY_SIZE)
+    if (unlikely(++counter == HISTORY_SIZE))
         counter = 0;
 
     load = load/HISTORY_SIZE;
@@ -199,7 +203,7 @@ static void decide_hotplug_func(struct work_struct *work)
 
     if (load >= first_level)
     {
-        scale_interactive_tunables(0, 80, 10, 80);
+        scale_interactive_tunables(0, 80, 10000, 80000);
         first_level_work_check(now);
         queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(HZ));
         return;
@@ -211,12 +215,13 @@ static void decide_hotplug_func(struct work_struct *work)
         if (now >= touch_off_time + SEC_THRESHOLD)
         {
             /* only call scale function if dynamic_scaling is true */
-            if (get_dynamic_scaling())
-                scale_min_sample_time(20);
+            if (likely(get_dynamic_scaling()))
+                scale_min_sample_time(40000);
             is_touched = false;
         }
 
-        else if (stats.online_cpus < stats.cores_on_touch)
+        else if (stats.online_cpus < stats.cores_on_touch &&
+            !one_touch_flag)
         {
             second_level_work_check(now);
             queue_delayed_work_on(0, wq, &decide_hotplug, msecs_to_jiffies(HZ));           
