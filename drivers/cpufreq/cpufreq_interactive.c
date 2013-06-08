@@ -448,6 +448,9 @@ static int cpufreq_interactive_up_task(void *data)
 		spin_unlock_irqrestore(&up_cpumask_lock, flags);
 
 		for_each_cpu(cpu, &tmp_mask) {
+			unsigned int j;
+			unsigned int max_freq = 0;
+
 			pcpu = &per_cpu(cpuinfo, cpu);
 			smp_rmb();
 
@@ -456,10 +459,18 @@ static int cpufreq_interactive_up_task(void *data)
 
 			mutex_lock(&set_speed_lock);
 
-			__cpufreq_driver_target(pcpu->policy,
-				pcpu->target_freq,
-				CPUFREQ_RELATION_H);
+			for_each_cpu(j, pcpu->policy->cpus) {
+				struct cpufreq_interactive_cpuinfo *pjcpu =
+					&per_cpu(cpuinfo, j);
 
+				if (pjcpu->target_freq > max_freq)
+					max_freq = pjcpu->target_freq;
+			}
+
+			if (max_freq > pcpu->policy->cur)
+				__cpufreq_driver_target(pcpu->policy,
+							max_freq,
+							CPUFREQ_RELATION_H);
 			mutex_unlock(&set_speed_lock);
 		}
 	}
@@ -480,6 +491,9 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 	spin_unlock_irqrestore(&down_cpumask_lock, flags);
 
 	for_each_cpu(cpu, &tmp_mask) {
+		unsigned int j;
+		unsigned int max_freq = 0;
+
 		pcpu = &per_cpu(cpuinfo, cpu);
 		smp_rmb();
 
@@ -488,9 +502,17 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 
 		mutex_lock(&set_speed_lock);
 
-		__cpufreq_driver_target(pcpu->policy, 
-			pcpu->target_freq,
-			CPUFREQ_RELATION_H);
+		for_each_cpu(j, pcpu->policy->cpus) {
+			struct cpufreq_interactive_cpuinfo *pjcpu =
+				&per_cpu(cpuinfo, j);
+
+			if (pjcpu->target_freq < max_freq)
+				max_freq = pjcpu->target_freq;
+		}
+
+		if (max_freq < pcpu->policy->cur)
+			__cpufreq_driver_target(pcpu->policy, max_freq,
+						CPUFREQ_RELATION_H);
 
 		mutex_unlock(&set_speed_lock);
 	}
